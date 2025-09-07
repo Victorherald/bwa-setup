@@ -1,4 +1,8 @@
 import  { useState } from "react";
+import EnemySlot from "./EnemySlot";
+import { processStatuses } from "../utils/ApplyEffects"; 
+import { Status } from "../utils/ApplyEffects";
+
 
 const GRID_SIZE = 16;
 
@@ -12,22 +16,29 @@ function getRandomLetters(size: number) {
 
 type LetterTileProps = {
   playerHealth: number;
-  setPlayerHealth: React.Dispatch<React.SetStateAction<number>>;
   enemyHealth: number;
-  setEnemyHealth: React.Dispatch<React.SetStateAction<number>>;
-   onPlayerAttack?: () => void;  // NEW
-  onEnemyAttack?: () => void;
+   setEnemyHealth: React.Dispatch<React.SetStateAction<number>>;
+  setPlayerHealth: React.Dispatch<React.SetStateAction<number>>;
+  setPlayerStatuses: React.Dispatch<React.SetStateAction<Status[]>>;
+  setEnemyStatuses: React.Dispatch<React.SetStateAction<Status[]>>;
+  onPlayerAttack?: () => void;
+  playerStatuses: Status[];
+  enemyStatuses: Status[];
 };
 
-export default function LetterTile({ playerHealth,
+export default function LetterTile({ 
   setPlayerHealth,
-  enemyHealth,
+
   setEnemyHealth,
   onPlayerAttack,
-  onEnemyAttack,
+
+
+
+
 }: LetterTileProps) {
   const [letters, setLetters] = useState<string[]>(() => getRandomLetters(GRID_SIZE));
   const [selected, setSelected] = useState<number[]>([]);
+
   // Handle letter click: move to middle if not already selected
   const handleTileClick = (idx: number) => {
     if (!selected.includes(idx)) {
@@ -52,15 +63,20 @@ export default function LetterTile({ playerHealth,
   const selectedWord = selected.map(i => letters[i]).join("");
   const canAttack = selectedWord.length >= 3;
 
+ 
   // Attack: reset board with new random letters
   const handleAttack = () => {
    if (canAttack) {
       
       setTimeout(() => {
-       
+          
+
         // Deplete enemy health
         setEnemyHealth((h) => Math.max(0, h - selectedWord.length * 2));
         onPlayerAttack?.(); 
+
+
+
         // Replace used letters
         const newLetters = [...letters];
         selected.forEach((idx) => {
@@ -70,12 +86,9 @@ export default function LetterTile({ playerHealth,
         setSelected([]);
 
         // Enemy retaliates
+      
        
-        setTimeout(() => {
-          setPlayerHealth((h) => Math.max(0, h - Math.floor(Math.random() * 5 + 3)));
-        onEnemyAttack?.();
         }, 500);
-      }, 500);
     }
   };
 

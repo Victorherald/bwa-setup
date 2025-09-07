@@ -7,7 +7,7 @@ import { Slot } from "./PlayerSlot";
 import EnemySlot from "./EnemySlot";
 import { enemies, Attack } from "./EnemyAttacks";
 import { createStatusesFromAttack, processStatuses, Status } from "../utils/ApplyEffects";
-
+import { createBuff } from "../utils/Buffs";
 
 
 type StatusEffect = {
@@ -35,14 +35,25 @@ const [isEnemyAttacking, setIsEnemyAttacking] = useState(false);
 const [playerStatuses, setPlayerStatuses] = useState<Status[]>([]);
 const [enemyStatuses, setEnemyStatuses] = useState<Status[]>([]);
 
+function handleStartOfPlayerTurn() {
+  setPlayerStatuses((prev) =>
+    processStatuses(prev, (damage) =>
+      setPlayerHealth((h) => Math.max(0, h - damage))
+    )
+  );
+}
+
+
+
 
 
 // Enemy retaliates
 function handleEnemyRetaliate() {
   setTimeout(() => {
+   
     const randomIndex = Math.floor(Math.random() * enemy.attacks.length);
     const attack = enemy.attacks[randomIndex];
-
+    
     // Enemy deals base damage
     const damage = 5; 
     setPlayerHealth((h) => Math.max(0, h - damage));
@@ -50,6 +61,13 @@ function handleEnemyRetaliate() {
     // Apply any ailment from that attack
     const newStatuses = createStatusesFromAttack(attack);
     setPlayerStatuses((prev) => [...prev, ...newStatuses]);
+
+     // ✅ Count down Enemy’s statuses AFTER their attack
+    setEnemyStatuses((prev) =>
+      processStatuses(prev, (damage) =>
+        setEnemyHealth((hp) => Math.max(0, hp - damage))
+      )
+    );
 
     // Trigger blink
     setEnemyAttackIndex(randomIndex);
@@ -61,6 +79,10 @@ function handleEnemyRetaliate() {
     }, 1000);
   }, 500);
 }
+
+
+
+
 
 
 
