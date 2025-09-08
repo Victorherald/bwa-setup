@@ -7,7 +7,7 @@ import { Slot } from "./PlayerSlot";
 import EnemySlot from "./EnemySlot";
 import { enemies, Attack } from "./EnemyAttacks";
 import { createStatusesFromAttack, processStatuses, Status } from "../utils/ApplyEffects";
-import { createBuff } from "../utils/Buffs";
+
 
 
 type StatusEffect = {
@@ -35,11 +35,11 @@ const [isEnemyAttacking, setIsEnemyAttacking] = useState(false);
 const [playerStatuses, setPlayerStatuses] = useState<Status[]>([]);
 const [enemyStatuses, setEnemyStatuses] = useState<Status[]>([]);
 
-function handleStartOfPlayerTurn() {
-  setPlayerStatuses((prev) =>
-    processStatuses(prev, (damage) =>
-      setPlayerHealth((h) => Math.max(0, h - damage))
-    )
+
+
+function tickPlayerStatuses() {
+  setPlayerStatuses(prev =>
+    processStatuses(prev, dmg => setPlayerHealth(h => Math.max(0, h - dmg)))
   );
 }
 
@@ -57,6 +57,10 @@ function handleEnemyRetaliate() {
     // Enemy deals base damage
     const damage = 5; 
     setPlayerHealth((h) => Math.max(0, h - damage));
+
+    // Before enemy attacks
+tickPlayerStatuses();
+
 
     // Apply any ailment from that attack
     const newStatuses = createStatusesFromAttack(attack);
@@ -190,13 +194,17 @@ function handleEnemyRetaliate() {
              
                 
                     <LetterTile  playerHealth={playerHealth}
-        setPlayerHealth={setPlayerHealth}
-        enemyHealth={enemyHealth}
-        setEnemyHealth={setEnemyHealth}
-        onPlayerAttack={() => {
-                  setPlayerAttacking(true);
-                  handleEnemyRetaliate(); // 👈 Enemy responds
-                }}
+  setPlayerHealth={setPlayerHealth}
+  enemyHealth={enemyHealth}
+  setEnemyHealth={setEnemyHealth}
+  playerStatuses={playerStatuses}
+  setPlayerStatuses={setPlayerStatuses}    // ✅ Pass this
+  enemyStatuses={enemyStatuses}
+  setEnemyStatuses={setEnemyStatuses}      // ✅ Pass this
+  onPlayerAttack={() => {
+    setPlayerAttacking(true);
+    handleEnemyRetaliate();
+  }}
         />
                
              

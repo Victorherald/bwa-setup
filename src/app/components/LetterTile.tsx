@@ -15,25 +15,25 @@ function getRandomLetters(size: number) {
 }
 
 type LetterTileProps = {
-  playerHealth: number;
-  enemyHealth: number;
-   setEnemyHealth: React.Dispatch<React.SetStateAction<number>>;
+playerHealth: number;
   setPlayerHealth: React.Dispatch<React.SetStateAction<number>>;
+  enemyHealth: number;
+  setEnemyHealth: React.Dispatch<React.SetStateAction<number>>;
+  playerStatuses: Status[];
   setPlayerStatuses: React.Dispatch<React.SetStateAction<Status[]>>;
+  enemyStatuses: Status[];
   setEnemyStatuses: React.Dispatch<React.SetStateAction<Status[]>>;
   onPlayerAttack?: () => void;
-  playerStatuses: Status[];
-  enemyStatuses: Status[];
 };
 
 export default function LetterTile({ 
   setPlayerHealth,
-
   setEnemyHealth,
   onPlayerAttack,
-
-
-
+  playerStatuses,
+  setPlayerStatuses,
+  enemyStatuses,
+  setEnemyStatuses,
 
 }: LetterTileProps) {
   const [letters, setLetters] = useState<string[]>(() => getRandomLetters(GRID_SIZE));
@@ -45,6 +45,13 @@ export default function LetterTile({
       setSelected([...selected, idx]);
     }
   };
+
+  
+  function tickEnemyStatuses() {
+  setEnemyStatuses(prev =>
+    processStatuses(prev, dmg => setEnemyHealth(h => Math.max(0, h - dmg)))
+  );
+}
 
   
 
@@ -64,33 +71,33 @@ export default function LetterTile({
   const canAttack = selectedWord.length >= 3;
 
  
-  // Attack: reset board with new random letters
   const handleAttack = () => {
-   if (canAttack) {
-      
-      setTimeout(() => {
-          
+  if (!canAttack) return;
 
-        // Deplete enemy health
-        setEnemyHealth((h) => Math.max(0, h - selectedWord.length * 2));
-        onPlayerAttack?.(); 
+  // Deal damage to enemy
+  setEnemyHealth(h => Math.max(0, h - selectedWord.length * 2));
 
+  // ✅ Tick enemy statuses after Lex attacks
+  tickEnemyStatuses();
 
+  // ✅ Countdown statuses for both sides AFTER Lex attacks
+  setPlayerStatuses(prev =>
+    processStatuses(prev, dmg => setPlayerHealth(h => Math.max(0, h - dmg)))
+  );
+  setEnemyStatuses(prev =>
+    processStatuses(prev, dmg => setEnemyHealth(h => Math.max(0, h - dmg)))
+  );
 
-        // Replace used letters
-        const newLetters = [...letters];
-        selected.forEach((idx) => {
-          newLetters[idx] = getRandomLetters(1)[0];
-        });
-        setLetters(newLetters);
-        setSelected([]);
+  // Reset letters
+  const newLetters = [...letters];
+  selected.forEach(idx => (newLetters[idx] = getRandomLetters(1)[0]));
+  setLetters(newLetters);
+  setSelected([]);
 
-        // Enemy retaliates
-      
-       
-        }, 500);
-    }
-  };
+  // Trigger enemy retaliation
+  onPlayerAttack?.();
+};
+
 
   return (
     <div style={{ width: "100%", position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
