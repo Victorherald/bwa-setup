@@ -196,19 +196,7 @@ body {
 	float: right;
 }
 
-/* Health bars */
-.health_bar {
-  background-color: #e63946;
-  color: #fffbe6;
-  height: 1.5rem;
-  min-width: 3rem;
-  border-radius: 0.5rem;
-  font-weight: bold;
-  padding: 0 0.75rem;
-  margin: 0.5rem;
-  display: inline-block;
-  box-shadow: 0 2px 8px rgba(230,57,70,0.08);
-}
+
 
 #player_health {
 	float: left;

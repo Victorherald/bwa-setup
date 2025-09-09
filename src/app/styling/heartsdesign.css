@@ -1,0 +1,34 @@
+.heart-container {
+  display: flex;
+  gap: 2px;
+   color: rgba(0, 0, 0, 0.142);
+}
+
+.heart {
+  width: 24px;
+  height: 24px;
+  background-color: transparent;
+  position: relative;
+  font-size: 22px;
+  line-height: 24px;
+  text-align: center;
+}
+
+.heart.full {
+  color: red; /* ❤️ full red heart */
+}
+
+/* partial hearts — using emojis for now */
+.heart.quarter::before {
+  content: "🟥"; /* quarter filled */
+}
+.heart.half::before {
+  content: "🟥🟥"; /* half filled look */
+}
+.heart.threequarter::before {
+  content: "🟥🟥🟥"; /* 3/4 filled look */
+}
+
+.heart.empty {
+  color: rgba(0, 0, 0, 0.4); /* transparent black for empty hearts */
+}

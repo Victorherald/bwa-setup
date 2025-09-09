@@ -5,9 +5,10 @@ import "../styling/style.css";
 import LetterTile from "./LetterTile";
 import { Slot } from "./PlayerSlot";
 import EnemySlot from "./EnemySlot";
-import { enemies, Attack } from "./EnemyAttacks";
+import { enemies, Enemy } from "./EnemyAttacks";
 import { createStatusesFromAttack, processStatuses, Status } from "../utils/ApplyEffects";
-
+import "../styling/heartsdesign.css";
+import Heart from '../components/Hearts';
 
 
 type StatusEffect = {
@@ -22,45 +23,66 @@ const PLAYER_MAX_HEALTH = 25;
 
 
 export default function GameBoard() {
-
-  const enemy = enemies[2];
+   const [enemyIndex, setEnemyIndex] = useState(0);
+const enemy = enemies[enemyIndex]; // ✅ always in sync
   const [playerHealth, setPlayerHealth] = useState(PLAYER_MAX_HEALTH);
   
      const [playerAttacking, setPlayerAttacking] = useState(false);
   const [enemyAttacking, setEnemyAttacking] = useState(false);
  const [enemyHealth, setEnemyHealth] = useState(enemy.maxHealth);
   const [enemyAttackIndex, setEnemyAttackIndex] = useState<number | null>(null);
-const [isEnemyAttacking, setIsEnemyAttacking] = useState(false);
+;
 // For Lex (player) and the enemy
 const [playerStatuses, setPlayerStatuses] = useState<Status[]>([]);
 const [enemyStatuses, setEnemyStatuses] = useState<Status[]>([]);
 
+const currentEnemy: Enemy | undefined = enemies[enemyIndex];
 
 
-function tickPlayerStatuses() {
-  setPlayerStatuses(prev =>
-    processStatuses(prev, dmg => setPlayerHealth(h => Math.max(0, h - dmg)))
-  );
+function handleEnemyHealthChange(value: number | ((hp: number) => number)) {
+  setEnemyHealth(prev => {
+    const newHp =
+      typeof value === "function" ? (value as (hp: number) => number)(prev) : value;
+
+    if (newHp <= 0) {
+      const nextIndex = enemyIndex + 1;
+      if (nextIndex < enemies.length) {
+        setEnemyIndex(nextIndex); // move to next enemy
+        return enemies[nextIndex].maxHealth; // reset HP
+      } else {
+        console.log("🎉 All enemies defeated!");
+        return 0;
+      }
+    }
+
+    return newHp;
+  });
 }
-
-
 
 
 
 // Enemy retaliates
 function handleEnemyRetaliate() {
   setTimeout(() => {
-   
+    if (!enemy || playerHealth <= 0) return;
+
+
     const randomIndex = Math.floor(Math.random() * enemy.attacks.length);
     const attack = enemy.attacks[randomIndex];
     
     // Enemy deals base damage
     const damage = 5; 
-    setPlayerHealth((h) => Math.max(0, h - damage));
+    
 
-    // Before enemy attacks
-tickPlayerStatuses();
+    //translates into heart damage 
+    const heartDamage = damage / 4;
 
+
+     // Apply damage safely
+    setPlayerHealth((prevHearts) => Math.max(0, prevHearts - heartDamage));
+
+    
+    
 
     // Apply any ailment from that attack
     const newStatuses = createStatusesFromAttack(attack);
@@ -85,8 +107,47 @@ tickPlayerStatuses();
 }
 
 
+function renderHearts(health: number, maxHealth: number, side: "player" | "enemy") {
+  const totalHearts = Math.ceil(maxHealth / 4);
+  const fullHearts = Math.floor(health / 4);
+  const remainder = health % 4;
 
+  const hearts = [];
 
+  // Full hearts
+  for (let i = 0; i < fullHearts; i++) {
+    hearts.push(<Heart key={`full-${i}`} fraction={4} />);
+  }
+
+   // Partial heart
+  if (remainder > 0) {
+    hearts.push(<Heart key="partial" fraction={remainder} />);
+  }
+
+  // Empty hearts
+  while (hearts.length < totalHearts) {
+    hearts.push(<Heart key={`empty-${hearts.length}`} fraction={0} />);
+  }
+
+// Split into main row + overflow
+  const mainHearts = hearts.slice(0, 10);
+  const extraHearts = hearts.slice(10);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex gap-1">{mainHearts}</div>
+      {extraHearts.length > 0 && (
+        <div
+          className={`flex gap-1 scale-75 opacity-70 transition-all duration-500 ease-in-out ${
+            side === "player" ? "justify-start" : "justify-end"
+          }`}
+        >
+          {extraHearts}
+        </div>
+      )}
+    </div>
+  );
+}
 
 
 
@@ -113,8 +174,12 @@ tickPlayerStatuses();
        
 
         <div className="separate_layer">
-          <div className="health_bar" id="player_health">{playerHealth}</div>
-          <div className="health_bar" id="enemy_health">{enemyHealth}</div>
+          <div className="health_bar" id="player_health">
+    {renderHearts(playerHealth, PLAYER_MAX_HEALTH, "player")}
+  </div>
+  <div className="health_bar" id="enemy_health">
+    {renderHearts(enemyHealth, enemy.maxHealth, "enemy")}
+  </div>
         </div>
 
 
@@ -196,7 +261,7 @@ tickPlayerStatuses();
                     <LetterTile  playerHealth={playerHealth}
   setPlayerHealth={setPlayerHealth}
   enemyHealth={enemyHealth}
-  setEnemyHealth={setEnemyHealth}
+  setEnemyHealth={handleEnemyHealthChange}
   playerStatuses={playerStatuses}
   setPlayerStatuses={setPlayerStatuses}    // ✅ Pass this
   enemyStatuses={enemyStatuses}
