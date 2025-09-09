@@ -15,10 +15,10 @@ function getRandomLetters(size: number) {
 }
 
 type LetterTileProps = {
-playerHealth: number;
+ playerHealth: number;
   setPlayerHealth: React.Dispatch<React.SetStateAction<number>>;
   enemyHealth: number;
-  setEnemyHealth: React.Dispatch<React.SetStateAction<number>>;
+setEnemyHealth: (updater: (hp: number) => number) => void;
   playerStatuses: Status[];
   setPlayerStatuses: React.Dispatch<React.SetStateAction<Status[]>>;
   enemyStatuses: Status[];
@@ -74,29 +74,44 @@ export default function LetterTile({
   const handleAttack = () => {
   if (!canAttack) return;
 
-  // Deal damage to enemy
-  setEnemyHealth(h => Math.max(0, h - selectedWord.length * 2));
+  // Calculate damage based on word length
+  const attackDamage = selectedWord.length * 2;
 
-  // ✅ Tick enemy statuses after Lex attacks
+  // ✅ Reduce enemy HP safely
+  setEnemyHealth((prevHp) => {
+    const newHp = Math.max(0, prevHp - attackDamage);
+    return newHp;
+  });
+
+  // ✅ Apply enemy statuses (damage over time, etc.)
   tickEnemyStatuses();
 
-  // ✅ Countdown statuses for both sides AFTER Lex attacks
-  setPlayerStatuses(prev =>
-    processStatuses(prev, dmg => setPlayerHealth(h => Math.max(0, h - dmg)))
-  );
-  setEnemyStatuses(prev =>
-    processStatuses(prev, dmg => setEnemyHealth(h => Math.max(0, h - dmg)))
+  // ✅ Reduce player HP from their own statuses (poison, burn, etc.)
+  setPlayerStatuses((prev) =>
+    processStatuses(prev, (dmg) =>
+      setPlayerHealth((hp) => Math.max(0, hp - dmg))
+    )
   );
 
-  // Reset letters
+  // ✅ Reduce enemy HP from their statuses as well
+  setEnemyStatuses((prev) =>
+    processStatuses(prev, (dmg) =>
+      setEnemyHealth((hp) => Math.max(0, hp - dmg))
+    )
+  );
+
+  // Reset selected letters with new random letters
   const newLetters = [...letters];
-  selected.forEach(idx => (newLetters[idx] = getRandomLetters(1)[0]));
+  selected.forEach((idx) => {
+    newLetters[idx] = getRandomLetters(1)[0];
+  });
   setLetters(newLetters);
   setSelected([]);
 
-  // Trigger enemy retaliation
+  // ✅ Trigger enemy retaliation animation / attack
   onPlayerAttack?.();
 };
+
 
 
   return (

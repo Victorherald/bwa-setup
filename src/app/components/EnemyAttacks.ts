@@ -17,6 +17,12 @@ export type Attack = {
   color: string[];
   description: string;
   damage: number;
+  buff?: {
+    type: "heal" | "powerup"; // differentiate buffs
+    amount: number;             // how much the buff does
+    duration: number;           // how long it lasts in turns
+    color?: string;             // optional, will override default colors
+  };
 };
 
 export type Enemy = {
@@ -42,7 +48,7 @@ export const enemies: Enemy[] = [
   {
     id: "enemy1",
     name: "Baddi-boi",
-    maxHealth: 40,
+    maxHealth: 36,
     attacks: [
       {
         name: "Hammer Bludgeoning",

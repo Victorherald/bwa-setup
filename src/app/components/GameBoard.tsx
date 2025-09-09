@@ -1,153 +1,133 @@
-"use client"
+"use client";
 
-import { useState } from "react";
-import "../styling/style.css";
+import { useState, useEffect } from "react";
 import LetterTile from "./LetterTile";
-import { Slot } from "./PlayerSlot";
 import EnemySlot from "./EnemySlot";
 import { enemies, Enemy } from "./EnemyAttacks";
-import { createStatusesFromAttack, processStatuses, Status } from "../utils/ApplyEffects";
-import "../styling/heartsdesign.css";
-import Heart from '../components/Hearts';
-
-
-type StatusEffect = {
-  type: string;           // "poison", "burn", etc.
-  duration: number;       // how many turns left
-  damagePerTurn?: number; // damage tick each turn
-  color: string;          // icon color (use your ailment colors)
-};
+import { Status, processStatuses, createStatusesFromAttack } from "../utils/ApplyEffects";
+import Heart from "../components/Hearts";
+import { Slot } from './PlayerSlot';
 
 const PLAYER_MAX_HEALTH = 25;
 
-
-
 export default function GameBoard() {
-   const [enemyIndex, setEnemyIndex] = useState(0);
-const enemy = enemies[enemyIndex]; // ✅ always in sync
+  const [enemyIndex, setEnemyIndex] = useState(0);
+  const enemy = enemies[enemyIndex];
   const [playerHealth, setPlayerHealth] = useState(PLAYER_MAX_HEALTH);
-  
-     const [playerAttacking, setPlayerAttacking] = useState(false);
+  const [enemyHealth, setEnemyHealth] = useState(enemy.maxHealth);
+
+  const [playerStatuses, setPlayerStatuses] = useState<Status[]>([]);
+  const [enemyStatuses, setEnemyStatuses] = useState<Status[]>([]);
+
+  const [playerAttacking, setPlayerAttacking] = useState(false);
   const [enemyAttacking, setEnemyAttacking] = useState(false);
- const [enemyHealth, setEnemyHealth] = useState(enemy.maxHealth);
+
   const [enemyAttackIndex, setEnemyAttackIndex] = useState<number | null>(null);
-;
-// For Lex (player) and the enemy
-const [playerStatuses, setPlayerStatuses] = useState<Status[]>([]);
-const [enemyStatuses, setEnemyStatuses] = useState<Status[]>([]);
 
-const currentEnemy: Enemy | undefined = enemies[enemyIndex];
+  const [prevPlayerHealth, setPrevPlayerHealth] = useState(playerHealth);
+const [prevEnemyHealth, setPrevEnemyHealth] = useState(enemyHealth);
 
+// Then, after every damage:
 
-function handleEnemyHealthChange(value: number | ((hp: number) => number)) {
-  setEnemyHealth(prev => {
-    const newHp =
-      typeof value === "function" ? (value as (hp: number) => number)(prev) : value;
+// Update prevHealth after each render
+useEffect(() => {
+  setPrevPlayerHealth(playerHealth);
+}, [playerHealth]);
 
-    if (newHp <= 0) {
-      const nextIndex = enemyIndex + 1;
-      if (nextIndex < enemies.length) {
-        setEnemyIndex(nextIndex); // move to next enemy
-        return enemies[nextIndex].maxHealth; // reset HP
-      } else {
-        console.log("🎉 All enemies defeated!");
-        return 0;
+useEffect(() => {
+  setPrevEnemyHealth(enemyHealth);
+}, [enemyHealth]);
+
+  // Handles enemy HP change and spawns next enemy automatically
+  const handleEnemyHealthChange = (updater: (hp: number) => number) => {
+    setEnemyHealth(prev => {
+      const newHp = updater(prev);
+      if (newHp <= 0) {
+        const nextIndex = enemyIndex + 1;
+        if (nextIndex < enemies.length) {
+          setEnemyIndex(nextIndex);
+          return enemies[nextIndex].maxHealth;
+        } else {
+          console.log("🎉 All enemies defeated!");
+          return 0;
+        }
       }
-    }
+      return newHp;
+    });
+  };
 
-    return newHp;
-  });
-}
-
-
-
-// Enemy retaliates
-function handleEnemyRetaliate() {
-  setTimeout(() => {
-    if (!enemy || playerHealth <= 0) return;
-
-
-    const randomIndex = Math.floor(Math.random() * enemy.attacks.length);
-    const attack = enemy.attacks[randomIndex];
-    
-    // Enemy deals base damage
-    const damage = 5; 
-    
-
-    //translates into heart damage 
-    const heartDamage = damage / 4;
-
-
-     // Apply damage safely
-    setPlayerHealth((prevHearts) => Math.max(0, prevHearts - heartDamage));
-
-    
-    
-
-    // Apply any ailment from that attack
-    const newStatuses = createStatusesFromAttack(attack);
-    setPlayerStatuses((prev) => [...prev, ...newStatuses]);
-
-     // ✅ Count down Enemy’s statuses AFTER their attack
-    setEnemyStatuses((prev) =>
-      processStatuses(prev, (damage) =>
-        setEnemyHealth((hp) => Math.max(0, hp - damage))
-      )
-    );
-
-    // Trigger blink
-    setEnemyAttackIndex(randomIndex);
-    setEnemyAttacking(true);
-
+  // Enemy retaliation
+  const handleEnemyRetaliate = () => {
     setTimeout(() => {
-      setEnemyAttackIndex(null);
-      setEnemyAttacking(false);
-    }, 1000);
-  }, 500);
-}
+      if (playerHealth <= 0) return;
 
+      const attackIndex = Math.floor(Math.random() * enemy.attacks.length);
+      const attack = enemy.attacks[attackIndex];
+      const damage = 5;
+      const heartDamage = damage / 4;
 
-function renderHearts(health: number, maxHealth: number, side: "player" | "enemy") {
+      setPlayerHealth(h => Math.max(0, h - heartDamage));
+
+      // Apply statuses
+      const newStatuses = createStatusesFromAttack(attack);
+      setPlayerStatuses(prev => [...prev, ...newStatuses]);
+
+      setEnemyStatuses(prev =>
+        processStatuses(prev, dmg => handleEnemyHealthChange(hp => Math.max(0, hp - dmg)))
+      );
+
+      setEnemyAttackIndex(attackIndex);
+      setEnemyAttacking(true);
+
+      setTimeout(() => {
+        setEnemyAttackIndex(null);
+        setEnemyAttacking(false);
+      }, 1000);
+    }, 500);
+  };
+
+  const renderHearts = (health: number, maxHealth: number, side: "player" | "enemy", prevHealth?: number) => {
   const totalHearts = Math.ceil(maxHealth / 4);
+
   const fullHearts = Math.floor(health / 4);
   const remainder = health % 4;
 
+  const prevFullHearts = prevHealth !== undefined ? Math.floor(prevHealth / 4) : fullHearts;
+  const prevRemainder = prevHealth !== undefined ? prevHealth % 4 : remainder;
+
   const hearts = [];
 
-  // Full hearts
-  for (let i = 0; i < fullHearts; i++) {
-    hearts.push(<Heart key={`full-${i}`} fraction={4} />);
+  for (let i = 0; i < totalHearts; i++) {
+    let fraction = 0;
+    if (i < fullHearts) fraction = 4;
+    else if (i === fullHearts && remainder > 0) fraction = remainder;
+
+    // Decide if this heart got damaged
+    let damaged = false;
+    if (prevHealth !== undefined) {
+      if (i < prevFullHearts && i >= fullHearts) damaged = true;
+      if (i === fullHearts && remainder < prevRemainder) damaged = true;
+    }
+
+    hearts.push(<Heart key={i} fraction={fraction} damaged={damaged} />);
   }
 
-   // Partial heart
-  if (remainder > 0) {
-    hearts.push(<Heart key="partial" fraction={remainder} />);
-  }
-
-  // Empty hearts
-  while (hearts.length < totalHearts) {
-    hearts.push(<Heart key={`empty-${hearts.length}`} fraction={0} />);
-  }
-
-// Split into main row + overflow
+  // Split rows
   const mainHearts = hearts.slice(0, 10);
-  const extraHearts = hearts.slice(10);
+  const extraHearts = hearts.slice(10, 20);
+  const extraHearts2 = hearts.slice(20);
+
+  const mainRowClass = side === "player" ? "flex gap-1" : "flex flex-row-reverse gap-1";
+  const extraRowClass = side === "player" ? "flex flex-row-reverse gap-1 justify-end scale-y-50 opacity-80" : "flex gap-1 justify-start scale-y-50 opacity-80";
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex gap-1">{mainHearts}</div>
-      {extraHearts.length > 0 && (
-        <div
-          className={`flex gap-1 scale-75 opacity-70 transition-all duration-500 ease-in-out ${
-            side === "player" ? "justify-start" : "justify-end"
-          }`}
-        >
-          {extraHearts}
-        </div>
-      )}
+      <div className={mainRowClass}>{mainHearts}</div>
+      {extraHearts.length > 0 && <div className={extraRowClass}>{extraHearts.map((h, i) => <div key={`extra-${i}`}>{h}</div>)}</div>}
+      {extraHearts2.length > 0 && <div className={extraRowClass}>{extraHearts2.map((h, i) => <div key={`extra2-${i}`}>{h}</div>)}</div>}
     </div>
   );
-}
+};
 
 
 
@@ -162,7 +142,9 @@ function renderHearts(health: number, maxHealth: number, side: "player" | "enemy
 
       <div className="battle-chapter">
           <div id="chapter_text">Chapter 1: The Beginning</div>
-           <div id="enemy_level">Enemy {0} of {0}</div>
+          <div id="enemy_level">
+          Enemy {enemyIndex + 1} of {enemies.length}
+        </div>
         </div>
 
       <div id="battlefield">
@@ -174,12 +156,13 @@ function renderHearts(health: number, maxHealth: number, side: "player" | "enemy
        
 
         <div className="separate_layer">
-          <div className="health_bar" id="player_health">
-    {renderHearts(playerHealth, PLAYER_MAX_HEALTH, "player")}
-  </div>
-  <div className="health_bar" id="enemy_health">
-    {renderHearts(enemyHealth, enemy.maxHealth, "enemy")}
-  </div>
+        <div className="health_bar" id="enemy_health">
+  {renderHearts(enemyHealth, enemy.maxHealth, "enemy", prevEnemyHealth)}
+</div>
+
+<div className="health_bar" id="player_health">
+  {renderHearts(playerHealth, PLAYER_MAX_HEALTH, "player", prevPlayerHealth)}
+</div>
         </div>
 
 
